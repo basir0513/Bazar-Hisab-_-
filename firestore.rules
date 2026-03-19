@@ -1,0 +1,107 @@
+// ===============================================================
+// Assumed Data Model
+// ===============================================================
+//
+// Collection: users
+// Document ID: userId (uid)
+// Fields:
+//   - uid: string (required)
+//   - displayName: string (optional)
+//   - email: string (required)
+//   - monthlyBudget: number (optional)
+//
+// Collection: bazarLists
+// Document ID: listId
+// Fields:
+//   - userId: string (required)
+//   - name: string (required)
+//   - date: timestamp (required)
+//   - totalCost: number (optional)
+//   - status: string (required, enum: ["active", "completed"])
+//
+// Collection: bazarLists/{listId}/items
+// Document ID: itemId
+// Fields:
+//   - listId: string (required)
+//   - userId: string (required)
+//   - name: string (required)
+//   - category: string (optional)
+//   - quantity: string (optional)
+//   - estimatedPrice: number (optional)
+//   - actualPrice: number (optional)
+//   - isBought: boolean (required)
+//
+// ===============================================================
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    function isValidUser(data) {
+      return data.keys().hasAll(['uid', 'email']) &&
+             data.uid is string &&
+             data.email is string &&
+             (!('monthlyBudget' in data) || data.monthlyBudget is number);
+    }
+    
+    function isValidBazarList(data) {
+      return data.keys().hasAll(['userId', 'name', 'date', 'status']) &&
+             data.userId == request.auth.uid &&
+             data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
+             data.date is timestamp &&
+             data.status in ['active', 'completed'] &&
+             (!('totalCost' in data) || data.totalCost is number);
+    }
+    
+    function isValidBazarItem(data) {
+      return data.keys().hasAll(['listId', 'userId', 'name', 'isBought']) &&
+             data.listId is string &&
+             data.userId == request.auth.uid &&
+             data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
+             data.isBought is bool &&
+             (!('category' in data) || data.category is string) &&
+             (!('quantity' in data) || data.quantity is number) &&
+             (!('unit' in data) || data.unit in ['kg', 'gm', 'ltr', 'piece', 'packet', 'dozen']) &&
+             (!('unitPrice' in data) || data.unitPrice is number) &&
+             (!('estimatedPrice' in data) || data.estimatedPrice is number) &&
+             (!('actualPrice' in data) || data.actualPrice is number);
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    match /users/{userId} {
+      allow read: if isOwner(userId);
+      allow create: if isOwner(userId) && isValidUser(request.resource.data);
+      allow update: if isOwner(userId) && isValidUser(request.resource.data);
+      allow delete: if false; // Users cannot delete their profiles via the app
+    }
+
+    match /bazarLists/{listId} {
+      allow read: if isAuthenticated() && (resource == null || resource.data.userId == request.auth.uid);
+      allow create: if isAuthenticated() && isValidBazarList(request.resource.data);
+      allow update: if isAuthenticated() && resource.data.userId == request.auth.uid && isValidBazarList(request.resource.data);
+      allow delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
+
+      match /items/{itemId} {
+        allow read: if isAuthenticated() && (resource == null || resource.data.userId == request.auth.uid);
+        allow create: if isAuthenticated() && isValidBazarItem(request.resource.data);
+        allow update: if isAuthenticated() && resource.data.userId == request.auth.uid && isValidBazarItem(request.resource.data);
+        allow delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      }
+    }
+  }
+}

@@ -1,0 +1,62 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile and budget settings",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "displayName": { "type": "string" },
+        "email": { "type": "string" },
+        "monthlyBudget": { "type": "number", "description": "User's set budget for the month" }
+      },
+      "required": ["uid", "email"]
+    },
+    "BazarList": {
+      "title": "Bazar List",
+      "description": "A collection of items to buy for a specific trip",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "name": { "type": "string", "description": "e.g., Weekly Bazar, March 2026" },
+        "date": { "type": "string", "format": "date-time" },
+        "totalCost": { "type": "number" },
+        "status": { "type": "string", "enum": ["active", "completed"] }
+      },
+      "required": ["userId", "date", "status"]
+    },
+    "BazarItem": {
+      "title": "Bazar Item",
+      "description": "An individual item in a bazar list",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "listId": { "type": "string" },
+        "userId": { "type": "string" },
+        "name": { "type": "string" },
+        "category": { "type": "string" },
+        "quantity": { "type": "number" },
+        "unit": { "type": "string", "enum": ["kg", "gm", "ltr", "piece", "packet", "dozen"] },
+        "estimatedPrice": { "type": "number" },
+        "actualPrice": { "type": "number" },
+        "isBought": { "type": "boolean" }
+      },
+      "required": ["listId", "userId", "name", "isBought"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User profiles"
+    },
+    "/bazarLists/{listId}": {
+      "schema": "BazarList",
+      "description": "Metadata for each bazar list"
+    },
+    "/bazarLists/{listId}/items/{itemId}": {
+      "schema": "BazarItem",
+      "description": "Items within a specific bazar list"
+    }
+  }
+}
