@@ -103,5 +103,11 @@ service cloud.firestore {
         allow delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
       }
     }
+
+    // Support for collectionGroup queries on items
+    // This is required for the Insights tab and Last Purchase context
+    match /{path=**}/items/{itemId} {
+      allow read: if isAuthenticated() && resource.data.userId == request.auth.uid;
+    }
   }
 }

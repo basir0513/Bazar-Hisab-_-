@@ -212,6 +212,38 @@ export const translations: Translations = {
     en: 'Total:',
     bn: 'মোট:',
   },
+  reopenList: {
+    en: 'Re-open List',
+    bn: 'ফর্দ পুনরায় খুলুন',
+  },
+  reopenListConfirm: {
+    en: 'Do you want to move this list back to active?',
+    bn: 'আপনি কি এই ফর্দটি পুনরায় সক্রিয় করতে চান?',
+  },
+  shareList: {
+    en: 'Share List',
+    bn: 'ফর্দ শেয়ার করুন',
+  },
+  listCopied: {
+    en: 'List copied to clipboard!',
+    bn: 'ফর্দটি ক্লিপবোর্ডে কপি করা হয়েছে!',
+  },
+  quickAdd: {
+    en: 'Quick Add',
+    bn: 'দ্রুত যোগ করুন',
+  },
+  installApp: {
+    en: 'Install App',
+    bn: 'অ্যাপ ইনস্টল করুন',
+  },
+  installAppHelp: {
+    en: 'Install this app on your phone for a better experience.',
+    bn: 'আরও ভালো অভিজ্ঞতার জন্য আপনার ফোনে এই অ্যাপটি ইনস্টল করুন।',
+  },
+  mobileUsageText: {
+    en: 'For the best experience, add this app to your home screen.',
+    bn: 'সেরা অভিজ্ঞতার জন্য, এই অ্যাপটি আপনার হোম স্ক্রিনে যোগ করুন।',
+  },
 
   // Settings
   setMonthlyBudget: {
@@ -265,6 +297,66 @@ export const translations: Translations = {
   versionInfo: {
     en: 'Bazar Hisab v1.2.0 • Made by Basir Uddin',
     bn: 'বাজার হিসাব v১.২.০ • তৈরি করেছেন বসির উদ্দিন',
+  },
+
+  // Insights
+  insights: {
+    en: 'Insights',
+    bn: 'ইনসাইটস',
+  },
+  spendingByCategory: {
+    en: 'Spending by Category',
+    bn: 'ক্যাটাগরি অনুযায়ী খরচ',
+  },
+  monthlyComparison: {
+    en: 'Monthly Comparison',
+    bn: 'মাসিক তুলনা',
+  },
+  last4Months: {
+    en: 'Last 4 Months',
+    bn: 'গত ৪ মাস',
+  },
+  
+  // Budgeting
+  targetBudget: {
+    en: 'Target Budget',
+    bn: 'টার্গেট বাজেট',
+  },
+  budgetProgress: {
+    en: 'Budget Progress',
+    bn: 'বাজেট অগ্রগতি',
+  },
+  overBudget: {
+    en: 'Over Budget!',
+    bn: 'বাজেট অতিক্রম করেছে!',
+  },
+  
+  // Last Purchase
+  lastPaid: {
+    en: 'Last paid: ৳ {{amount}} on {{date}}',
+    bn: 'সর্বশেষ দাম: ৳ {{amount}} তারিখ: {{date}}',
+  },
+  
+  // Voice Input
+  voiceInput: {
+    en: 'Voice Input',
+    bn: 'ভয়েস ইনপুট',
+  },
+  listening: {
+    en: 'Listening...',
+    bn: 'শুনছি...',
+  },
+  voiceError: {
+    en: 'Could not understand. Please try again.',
+    bn: 'বুঝতে পারিনি। আবার চেষ্টা করুন।',
+  },
+  noDataYet: {
+    en: 'No data yet',
+    bn: 'এখনও কোনো তথ্য নেই',
+  },
+  addItemsToSeeInsights: {
+    en: 'Add items and prices to your lists to see spending insights',
+    bn: 'খরচের ইনসাইটস দেখতে আপনার ফর্দে আইটেম এবং দাম যোগ করুন',
   },
 
   // Error Boundary

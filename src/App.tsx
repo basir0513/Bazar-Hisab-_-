@@ -16,6 +16,8 @@ import {
   deleteDoc, 
   Timestamp, 
   orderBy,
+  getDocs,
+  limit,
   handleFirestoreError,
   OperationType
 } from './firebase';
@@ -42,8 +44,12 @@ import {
   CreditCard,
   Smartphone,
   Globe,
-  User as UserIcon,
+  Share2,
+  Download,
+  Mic,
+  BarChart2,
   PieChart as PieChartIcon,
+  User as UserIcon,
   BarChart3
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
@@ -55,7 +61,13 @@ import {
   YAxis, 
   CartesianGrid, 
   Tooltip, 
-  ResponsiveContainer 
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
+  BarChart,
+  Bar,
+  Legend
 } from 'recharts';
 
 import { useLanguage } from './LanguageContext';
@@ -76,6 +88,7 @@ interface BazarList {
   date: any;
   totalCost: number;
   status: 'active' | 'completed';
+  targetBudget?: number;
 }
 
 interface BazarItem {
@@ -194,7 +207,7 @@ export default function App() {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [isAuthReady, setIsAuthReady] = useState(false);
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'lists' | 'history' | 'settings'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'lists' | 'history' | 'settings' | 'insights'>('dashboard');
   const [selectedListId, setSelectedListId] = useState<string | null>(null);
 
   // Modal State
@@ -226,8 +239,15 @@ export default function App() {
     const handleTabSwitch = (e: any) => {
       if (e.detail) setActiveTab(e.detail);
     };
+    const handleSelectList = (e: any) => {
+      if (e.detail) setSelectedListId(e.detail);
+    };
     window.addEventListener('set-active-tab', (handleTabSwitch as EventListener));
-    return () => window.removeEventListener('set-active-tab', (handleTabSwitch as EventListener));
+    window.addEventListener('select-list', (handleSelectList as EventListener));
+    return () => {
+      window.removeEventListener('set-active-tab', (handleTabSwitch as EventListener));
+      window.removeEventListener('select-list', (handleSelectList as EventListener));
+    };
   }, []);
 
   // Auth Listener
@@ -338,6 +358,7 @@ export default function App() {
                 {activeTab === 'dashboard' && <Dashboard profile={profile} userId={user.uid} />}
                 {activeTab === 'lists' && <BazarLists userId={user.uid} onSelectList={setSelectedListId} filter="active" showConfirm={showConfirm} showAlert={showAlert} />}
                 {activeTab === 'history' && <BazarLists userId={user.uid} onSelectList={setSelectedListId} filter="completed" showConfirm={showConfirm} showAlert={showAlert} />}
+                {activeTab === 'insights' && <Insights userId={user.uid} />}
                 {activeTab === 'settings' && <BudgetSettings profile={profile} userId={user.uid} showAlert={showAlert} />}
               </>
             )}
@@ -346,10 +367,11 @@ export default function App() {
 
         {!selectedListId && (
           <nav className="fixed bottom-6 left-6 right-6 bg-white/90 backdrop-blur-lg border border-zinc-100 px-4 py-3 rounded-3xl flex justify-around items-center z-40 shadow-2xl shadow-black/5">
-            <NavButton active={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} icon={<LayoutDashboard />} label={t('dashboard')} />
-            <NavButton active={activeTab === 'lists'} onClick={() => setActiveTab('lists')} icon={<Logo size={20} />} label={t('lists')} />
-            <NavButton active={activeTab === 'history'} onClick={() => setActiveTab('history')} icon={<History />} label={t('history')} />
-            <NavButton active={activeTab === 'settings'} onClick={() => setActiveTab('settings')} icon={<Settings />} label={t('settings')} />
+            <NavButton active={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} icon={<LayoutDashboard className="w-5 h-5" />} label={t('dashboard')} />
+            <NavButton active={activeTab === 'lists'} onClick={() => setActiveTab('lists')} icon={<Logo size={20} className={activeTab === 'lists' ? 'bg-white' : 'bg-zinc-400'} />} label={t('lists')} />
+            <NavButton active={activeTab === 'insights'} onClick={() => setActiveTab('insights')} icon={<BarChart2 className="w-5 h-5" />} label={t('insights')} />
+            <NavButton active={activeTab === 'history'} onClick={() => setActiveTab('history')} icon={<History className="w-5 h-5" />} label={t('history')} />
+            <NavButton active={activeTab === 'settings'} onClick={() => setActiveTab('settings')} icon={<Settings className="w-5 h-5" />} label={t('settings')} />
           </nav>
         )}
 
@@ -780,12 +802,162 @@ function BazarLists({ userId, onSelectList, filter, showConfirm, showAlert }: { 
 }
 
 const CATEGORIES = [
-  { name: 'General', icon: <Logo size={16} className="bg-zinc-500" />, color: 'bg-zinc-100 text-zinc-600' },
-  { name: 'Vegetables', icon: <TrendingUp className="w-4 h-4" />, color: 'bg-emerald-100 text-emerald-600' },
-  { name: 'Meat/Fish', icon: <Logo size={16} className="bg-rose-500" />, color: 'bg-rose-100 text-rose-600' },
-  { name: 'Grocery', icon: <Wallet className="w-4 h-4" />, color: 'bg-amber-100 text-amber-600' },
-  { name: 'Dairy', icon: <Circle className="w-4 h-4" />, color: 'bg-blue-100 text-blue-600' },
+  { name: 'General', icon: <Logo size={16} className="bg-zinc-500" />, color: 'bg-zinc-100 text-zinc-600', hexColor: '#71717a' },
+  { name: 'Vegetables', icon: <TrendingUp className="w-4 h-4" />, color: 'bg-emerald-100 text-emerald-600', hexColor: '#10b981' },
+  { name: 'Meat/Fish', icon: <Logo size={16} className="bg-rose-500" />, color: 'bg-rose-100 text-rose-600', hexColor: '#f43f5e' },
+  { name: 'Grocery', icon: <Wallet className="w-4 h-4" />, color: 'bg-amber-100 text-amber-600', hexColor: '#f59e0b' },
+  { name: 'Dairy', icon: <Circle className="w-4 h-4" />, color: 'bg-blue-100 text-blue-600', hexColor: '#3b82f6' },
 ];
+
+function Insights({ userId }: { userId: string }) {
+  const { t, language } = useLanguage();
+  const [lists, setLists] = useState<BazarList[]>([]);
+  const [items, setItems] = useState<BazarItem[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const q = query(
+      collection(db, 'bazarLists'),
+      where('userId', '==', userId),
+      orderBy('date', 'desc'),
+      limit(20)
+    );
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const fetchedLists = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as BazarList));
+      setLists(fetchedLists);
+      
+      const fetchAllItems = async () => {
+        try {
+          const allItems: BazarItem[] = [];
+          // Fetch items for all fetched lists using nested queries with userId filter
+          // This avoids the need for a collectionGroup index while maintaining security
+          const itemPromises = fetchedLists.map(list => 
+            getDocs(query(
+              collection(db, 'bazarLists', list.id, 'items'),
+              where('userId', '==', userId)
+            ))
+          );
+          
+          const itemSnapshots = await Promise.all(itemPromises);
+          itemSnapshots.forEach(snap => {
+            snap.forEach(doc => allItems.push({ id: doc.id, ...doc.data() } as BazarItem));
+          });
+          
+          setItems(allItems);
+        } catch (error) {
+          console.error("Error fetching items for insights:", error);
+        } finally {
+          setLoading(false);
+        }
+      };
+      
+      if (fetchedLists.length > 0) {
+        fetchAllItems();
+      } else {
+        setLoading(false);
+      }
+    }, (err) => {
+      console.error("Insights snapshot error:", err);
+      setLoading(false);
+    });
+
+    return unsubscribe;
+  }, [userId]);
+
+  const categoryData = useMemo(() => {
+    return CATEGORIES.map(cat => {
+      const total = items
+        .filter(item => (item.category || 'General') === cat.name)
+        .reduce((sum, item) => sum + (item.actualPrice || item.estimatedPrice || 0), 0);
+      return { name: t(cat.name), value: total, color: cat.hexColor };
+    }).filter(d => d.value > 0);
+  }, [items, t]);
+
+  const monthlyData = useMemo(() => {
+    return Array.from({ length: 4 }).map((_, i) => {
+      const date = new Date();
+      date.setMonth(date.getMonth() - i);
+      const monthName = date.toLocaleDateString(language === 'bn' ? 'bn-BD' : 'en-US', { month: 'short' });
+      
+      const total = lists
+        .filter(list => {
+          const d = list.date.toDate();
+          return d.getMonth() === date.getMonth() && d.getFullYear() === date.getFullYear();
+        })
+        .reduce((sum, list) => sum + (list.totalCost || 0), 0);
+        
+      return { name: monthName, amount: total };
+    }).reverse();
+  }, [lists, language]);
+
+  if (loading) return <div className="p-10 text-center text-zinc-400">{t('loading')}</div>;
+
+  return (
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
+      {categoryData.length > 0 ? (
+        <div className="bg-white rounded-3xl p-6 border border-zinc-100 shadow-sm">
+          <h3 className="font-bold text-zinc-900 mb-6 flex items-center gap-2">
+            <PieChartIcon className="w-4 h-4 text-emerald-600" />
+            {t('spendingByCategory')}
+          </h3>
+          <div className="h-64">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={categoryData}
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={60}
+                  outerRadius={80}
+                  paddingAngle={5}
+                  dataKey="value"
+                >
+                  {categoryData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.color} />
+                  ))}
+                </Pie>
+                <Tooltip 
+                  contentStyle={{ borderRadius: '1rem', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
+                  formatter={(value: number) => [`৳ ${value.toLocaleString()}`, t('total')]}
+                />
+                <Legend verticalAlign="bottom" height={36}/>
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      ) : (
+        <div className="bg-white rounded-3xl p-10 border border-zinc-100 shadow-sm text-center">
+          <PieChartIcon className="w-12 h-12 text-zinc-100 mx-auto mb-4" />
+          <p className="text-zinc-400 font-medium">{t('noDataYet')}</p>
+          <p className="text-[10px] text-zinc-300 mt-1 uppercase tracking-wider">{t('addItemsToSeeInsights')}</p>
+        </div>
+      )}
+
+      <div className="bg-white rounded-3xl p-6 border border-zinc-100 shadow-sm">
+        <h3 className="font-bold text-zinc-900 mb-6 flex items-center gap-2">
+          <BarChart2 className="w-4 h-4 text-brand-600" />
+          {t('monthlyComparison')}
+        </h3>
+        <div className="h-64">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={monthlyData}>
+              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f4f4f5" />
+              <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#a1a1aa' }} />
+              <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#a1a1aa' }} />
+              <Tooltip 
+                cursor={{ fill: '#f8fafc' }}
+                contentStyle={{ borderRadius: '1rem', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
+                formatter={(value: number) => [`৳ ${value.toLocaleString()}`, t('totalSpent')]}
+              />
+              <Bar dataKey="amount" fill="#22c55e" radius={[4, 4, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+    </motion.div>
+  );
+}
 
 function BazarListDetail({ listId, onBack, userId, showConfirm, showAlert }: { listId: string, onBack: () => void, userId: string, showConfirm: (title: string, message: string, onConfirm: () => void) => void, showAlert: (title: string, message: string) => void }) {
   const { t, language } = useLanguage();
@@ -794,6 +966,70 @@ function BazarListDetail({ listId, onBack, userId, showConfirm, showAlert }: { l
   const [isAdding, setIsAdding] = useState(false);
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
   const [newItem, setNewItem] = useState({ name: '', quantity: '', unit: 'kg', unitPrice: '', estimatedPrice: '', category: 'General' });
+  const [isListening, setIsListening] = useState(false);
+  const [lastPurchase, setLastPurchase] = useState<{ amount: number, date: string } | null>(null);
+
+  const fetchLastPurchase = async (itemName: string) => {
+    if (!itemName) {
+      setLastPurchase(null);
+      return;
+    }
+    try {
+      // Find the most recent completed list that contains this item
+      const q = query(
+        collection(db, 'bazarLists'),
+        where('userId', '==', userId),
+        where('status', '==', 'completed'),
+        orderBy('date', 'desc'),
+        limit(5)
+      );
+      const listsSnap = await getDocs(q);
+      for (const listDoc of listsSnap.docs) {
+        const itemsSnap = await getDocs(query(
+          collection(db, 'bazarLists', listDoc.id, 'items'),
+          where('userId', '==', userId),
+          where('name', '==', itemName)
+        ));
+        if (!itemsSnap.empty) {
+          const itemData = itemsSnap.docs[0].data();
+          setLastPurchase({
+            amount: itemData.unitPrice || 0,
+            date: listDoc.data().date.toDate().toLocaleDateString(language === 'bn' ? 'bn-BD' : 'en-US')
+          });
+          return;
+        }
+      }
+      setLastPurchase(null);
+    } catch (e) {
+      console.error("Error fetching last purchase:", e);
+      setLastPurchase(null);
+    }
+  };
+
+  const startVoiceInput = () => {
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      showAlert(t('error'), 'Speech recognition not supported');
+      return;
+    }
+    const recognition = new SpeechRecognition();
+    recognition.lang = language === 'bn' ? 'bn-BD' : 'en-US';
+    recognition.onstart = () => setIsListening(true);
+    recognition.onresult = (event: any) => {
+      const transcript = event.results[0][0].transcript;
+      setNewItem(prev => {
+        const updated = { ...prev, name: transcript };
+        fetchLastPurchase(transcript);
+        return updated;
+      });
+      setIsListening(false);
+    };
+    recognition.onerror = () => {
+      setIsListening(false);
+      showAlert(t('error'), t('voiceError'));
+    };
+    recognition.start();
+  };
 
   useEffect(() => {
     const listRef = doc(db, 'bazarLists', listId);
@@ -948,6 +1184,63 @@ function BazarListDetail({ listId, onBack, userId, showConfirm, showAlert }: { l
     );
   };
 
+  const updateTargetBudget = async (val: number) => {
+    try {
+      await updateDoc(doc(db, 'bazarLists', listId), { targetBudget: val });
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, `bazarLists/${listId}`);
+    }
+  };
+
+  const budgetPercentage = useMemo(() => {
+    if (!list?.targetBudget || list.targetBudget <= 0) return 0;
+    return Math.min((list.totalCost / list.targetBudget) * 100, 100);
+  }, [list?.totalCost, list?.targetBudget]);
+
+  const budgetColor = useMemo(() => {
+    if (budgetPercentage >= 100) return 'bg-red-500';
+    if (budgetPercentage >= 80) return 'bg-amber-500';
+    return 'bg-emerald-500';
+  }, [budgetPercentage]);
+
+  const reopenList = async () => {
+    showConfirm(
+      t('reopenList'),
+      t('reopenListConfirm'),
+      async () => {
+        try {
+          await updateDoc(doc(db, 'bazarLists', listId), { status: 'active' });
+          showAlert(t('success'), t('reopenList'));
+        } catch (error) {
+          handleFirestoreError(error, OperationType.UPDATE, `bazarLists/${listId}`);
+        }
+      }
+    );
+  };
+
+  const shareList = () => {
+    const listText = items.map(item => 
+      `${item.isBought ? '✅' : '⬜'} ${item.name} - ${item.quantity} ${t(item.unit)}`
+    ).join('\n');
+    
+    const fullText = `${t('appName')}: ${list?.name}\n${t('date')}: ${list?.date.toDate().toLocaleDateString()}\n\n${listText}\n\n${t('totalSpent')}: ৳ ${list?.totalCost}`;
+    
+    navigator.clipboard.writeText(fullText).then(() => {
+      showAlert(t('success'), t('listCopied'));
+    });
+  };
+
+  const QUICK_ITEMS = [
+    { name: 'Rice', category: 'Grocery', unit: 'kg' },
+    { name: 'Onion', category: 'Vegetables', unit: 'kg' },
+    { name: 'Potato', category: 'Vegetables', unit: 'kg' },
+    { name: 'Oil', category: 'Grocery', unit: 'ltr' },
+    { name: 'Egg', category: 'General', unit: 'dozen' },
+    { name: 'Milk', category: 'Dairy', unit: 'ltr' },
+    { name: 'Chicken', category: 'Meat/Fish', unit: 'kg' },
+    { name: 'Fish', category: 'Meat/Fish', unit: 'kg' },
+  ];
+
   return (
     <motion.div 
       initial={{ opacity: 0, x: -20 }}
@@ -964,6 +1257,13 @@ function BazarListDetail({ listId, onBack, userId, showConfirm, showAlert }: { l
           <p className="text-xs text-zinc-500">{list?.date.toDate().toLocaleDateString(language === 'bn' ? 'bn-BD' : 'en-US')}</p>
         </div>
         <div className="flex items-center gap-2">
+          <button 
+            onClick={shareList}
+            className="p-2 hover:bg-zinc-100 text-zinc-400 hover:text-emerald-600 rounded-full transition-colors"
+            title={t('shareList')}
+          >
+            <Share2 className="w-5 h-5" />
+          </button>
           {list?.status === 'active' && (
             <button 
               onClick={handleDeleteList}
@@ -977,15 +1277,58 @@ function BazarListDetail({ listId, onBack, userId, showConfirm, showAlert }: { l
         </div>
       </div>
 
-      <div className="bg-emerald-600 rounded-2xl p-6 text-white flex justify-between items-center shadow-lg shadow-emerald-100">
-        <div>
-          <p className="text-xs text-emerald-100 font-medium">{t('totalSpent')}</p>
-          <h3 className="text-3xl font-bold">৳ {list?.totalCost?.toLocaleString(language === 'bn' ? 'bn-BD' : 'en-US') || 0}</h3>
+      <div className="bg-emerald-600 rounded-2xl p-6 text-white shadow-lg shadow-emerald-100 space-y-4">
+        <div className="flex justify-between items-center">
+          <div>
+            <p className="text-xs text-emerald-100 font-medium">{t('totalSpent')}</p>
+            <h3 className="text-3xl font-bold">৳ {list?.totalCost?.toLocaleString(language === 'bn' ? 'bn-BD' : 'en-US') || 0}</h3>
+          </div>
+          <div className="text-right">
+            <p className="text-xs text-emerald-100 font-medium">{t('items')}</p>
+            <h3 className="text-xl font-bold">{items.filter(i => i.isBought).length} / {items.length}</h3>
+          </div>
         </div>
-        <div className="text-right">
-          <p className="text-xs text-emerald-100 font-medium">{t('items')}</p>
-          <h3 className="text-xl font-bold">{items.filter(i => i.isBought).length} / {items.length}</h3>
-        </div>
+
+        {list?.status === 'active' && (
+          <div className="pt-4 border-t border-emerald-500/30 space-y-3">
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex-1">
+                <label className="text-[10px] text-emerald-100 font-bold uppercase tracking-wider mb-1 block">{t('targetBudget')}</label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-emerald-200 font-bold">৳</span>
+                  <input 
+                    type="number"
+                    value={list?.targetBudget || ''}
+                    onChange={(e) => updateTargetBudget(Number(e.target.value))}
+                    placeholder="0"
+                    className="w-full pl-8 pr-4 py-2 bg-emerald-700/30 border border-emerald-400/30 rounded-xl font-bold text-white placeholder:text-emerald-300/50 focus:outline-none focus:ring-2 focus:ring-white/20 transition-all"
+                  />
+                </div>
+              </div>
+              <div className="text-right">
+                <p className="text-[10px] text-emerald-100 font-bold uppercase tracking-wider mb-1">{t('budgetProgress')}</p>
+                <p className="text-lg font-black">{Math.round(budgetPercentage)}%</p>
+              </div>
+            </div>
+            
+            {list?.targetBudget && list.targetBudget > 0 && (
+              <div className="space-y-2">
+                <div className="h-2 bg-emerald-700/30 rounded-full overflow-hidden shadow-inner">
+                  <motion.div 
+                    initial={{ width: 0 }}
+                    animate={{ width: `${budgetPercentage}%` }}
+                    className={`h-full ${budgetPercentage >= 100 ? 'bg-rose-400' : budgetPercentage >= 80 ? 'bg-amber-400' : 'bg-white'} transition-all duration-500`}
+                  />
+                </div>
+                {budgetPercentage >= 100 && (
+                  <p className="text-[10px] text-rose-200 font-bold uppercase tracking-wider text-center animate-pulse">
+                    ⚠️ {t('overBudget')}
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="space-y-4">
@@ -1020,14 +1363,56 @@ function BazarListDetail({ listId, onBack, userId, showConfirm, showAlert }: { l
                   </button>
                 ))}
               </div>
-              <input 
-                autoFocus
-                type="text" 
-                placeholder={t('itemNamePlaceholder')} 
-                className="w-full p-3 bg-zinc-50 rounded-xl border border-zinc-200 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                value={newItem.name}
-                onChange={(e) => setNewItem({ ...newItem, name: e.target.value })}
-              />
+
+              <div className="space-y-2">
+                <p className="text-[10px] text-zinc-400 font-bold uppercase tracking-wider">{t('quickAdd')}</p>
+                <div className="flex flex-wrap gap-2">
+                  {QUICK_ITEMS.map(item => (
+                    <button 
+                      key={item.name}
+                      onClick={() => {
+                        setNewItem({ ...newItem, name: item.name, category: item.category, unit: item.unit });
+                        fetchLastPurchase(item.name);
+                      }}
+                      className="px-3 py-1.5 bg-zinc-50 border border-zinc-200 rounded-lg text-xs font-medium text-zinc-600 hover:bg-emerald-50 hover:border-emerald-200 hover:text-emerald-700 transition-all"
+                    >
+                      + {item.name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="relative">
+                <input 
+                  autoFocus
+                  type="text" 
+                  placeholder={t('itemNamePlaceholder')} 
+                  className="w-full p-3 bg-zinc-50 rounded-xl border border-zinc-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 pr-12"
+                  value={newItem.name}
+                  onChange={(e) => {
+                    setNewItem({ ...newItem, name: e.target.value });
+                    fetchLastPurchase(e.target.value);
+                  }}
+                />
+                <button 
+                  onClick={startVoiceInput}
+                  className={`absolute right-3 top-1/2 -translate-y-1/2 p-2 rounded-xl transition-all ${isListening ? 'bg-red-100 text-red-600 animate-pulse' : 'bg-zinc-100 text-zinc-400 hover:text-emerald-600'}`}
+                >
+                  <Mic className="w-5 h-5" />
+                </button>
+              </div>
+
+              {lastPurchase && (
+                <motion.div 
+                  initial={{ opacity: 0, y: -5 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="px-4 py-2 bg-emerald-50 rounded-xl border border-emerald-100"
+                >
+                  <p className="text-[10px] text-emerald-700 font-bold">
+                    💡 {t('lastPaid').replace('{{amount}}', lastPurchase.amount.toString()).replace('{{date}}', lastPurchase.date)}
+                  </p>
+                </motion.div>
+              )}
               <div className="grid grid-cols-2 gap-3">
                 <div className="flex gap-1">
                   <input 
@@ -1189,6 +1574,15 @@ function BazarListDetail({ listId, onBack, userId, showConfirm, showAlert }: { l
           {t('completeBazar')}
         </button>
       )}
+
+      {list?.status === 'completed' && (
+        <button 
+          onClick={reopenList}
+          className="w-full py-4 bg-emerald-600 text-white rounded-2xl font-bold shadow-xl hover:bg-emerald-700 transition-all"
+        >
+          {t('reopenList')}
+        </button>
+      )}
     </motion.div>
   );
 }
@@ -1197,6 +1591,26 @@ function BudgetSettings({ profile, userId, showAlert }: { profile: UserProfile |
   const { t, language, setLanguage } = useLanguage();
   const [budget, setBudget] = useState(profile?.monthlyBudget || 0);
   const [isSaving, setIsSaving] = useState(false);
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+
+  useEffect(() => {
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+    });
+  }, []);
+
+  const handleInstall = async () => {
+    if (deferredPrompt) {
+      deferredPrompt.prompt();
+      const { outcome } = await deferredPrompt.userChoice;
+      if (outcome === 'accepted') {
+        setDeferredPrompt(null);
+      }
+    } else {
+      showAlert(t('installApp'), t('mobileStep2'));
+    }
+  };
 
   const handleSave = async () => {
     setIsSaving(true);
@@ -1280,6 +1694,22 @@ function BudgetSettings({ profile, userId, showAlert }: { profile: UserProfile |
             <p className="text-sm text-zinc-600 leading-relaxed">{t('mobileUsageText')}</p>
           </div>
         </div>
+      </div>
+
+      <div className="bg-white p-8 rounded-3xl border border-zinc-100 shadow-sm">
+        <h3 className="font-bold text-zinc-900 mb-6 flex items-center gap-2">
+          <div className="w-8 h-8 rounded-lg bg-emerald-50 flex items-center justify-center">
+            <Download className="w-4 h-4 text-emerald-600" />
+          </div>
+          {t('installApp')}
+        </h3>
+        <p className="text-sm text-zinc-500 mb-6">{t('installAppHelp')}</p>
+        <button 
+          onClick={handleInstall}
+          className="w-full py-4 bg-emerald-600 text-white rounded-2xl font-bold shadow-lg shadow-emerald-100 hover:scale-[1.02] active:scale-95 transition-all"
+        >
+          {t('installApp')}
+        </button>
       </div>
 
       <div className="bg-white p-8 rounded-3xl border border-zinc-100 shadow-sm">
