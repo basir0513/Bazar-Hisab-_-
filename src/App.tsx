@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { 
   loginWithGoogle, 
+  loginWithGoogleRedirect,
   logout, 
   auth, 
   db, 
@@ -21,7 +22,7 @@ import {
   handleFirestoreError,
   OperationType
 } from './firebase';
-import { onAuthStateChanged, User } from 'firebase/auth';
+import { onAuthStateChanged, User, getRedirectResult } from 'firebase/auth';
 import { 
   Plus, 
   Trash2, 
@@ -254,6 +255,12 @@ export default function App() {
 
   // Auth Listener
   useEffect(() => {
+    // Check for redirect result
+    getRedirectResult(auth).catch((error) => {
+      console.error('Redirect result error:', error);
+      setLoginError(`${t('loginError')} (${error.code || 'unknown'})`);
+    });
+
     const unsubscribe = onAuthStateChanged(auth, async (u) => {
       setUser(u);
       if (u) {
@@ -321,8 +328,14 @@ export default function App() {
           <p className="text-zinc-500 mb-10 text-lg">{t('appTagline')}</p>
           
           {loginError && (
-            <div className="mb-6 p-4 bg-red-50 border border-red-100 rounded-2xl text-red-600 text-sm font-medium">
-              {loginError}
+            <div className="mb-6 p-4 bg-red-50 border border-red-100 rounded-2xl text-red-600 text-sm font-medium flex flex-col items-center gap-2">
+              <p>{loginError}</p>
+              <button 
+                onClick={() => window.location.reload()}
+                className="text-xs underline font-bold"
+              >
+                {language === 'bn' ? 'পেজ রিফ্রেশ করুন' : 'Refresh Page'}
+              </button>
             </div>
           )}
 
@@ -340,6 +353,12 @@ export default function App() {
                   message = language === 'bn' ? 'পপ-আপ ব্লক করা হয়েছে। অনুগ্রহ করে ব্রাউজারে পপ-আপ অনুমতি দিন।' : 'Popup blocked. Please allow popups in your browser.';
                 } else if (error.code === 'auth/network-request-failed') {
                   message = language === 'bn' ? 'নেটওয়ার্ক সমস্যা। আপনার ইন্টারনেট কানেকশন চেক করুন।' : 'Network error. Please check your internet connection.';
+                } else if (error.code === 'auth/popup-closed-by-user') {
+                  message = language === 'bn' ? 'লগইন উইন্ডোটি বন্ধ করা হয়েছে। আবার চেষ্টা করুন।' : 'Login window closed. Please try again.';
+                } else if (error.code === 'auth/unauthorized-domain') {
+                  message = language === 'bn' ? 'এই ডোমেইনটি অথরাইজড নয়। অনুগ্রহ করে অ্যাডমিনের সাথে যোগাযোগ করুন।' : 'Unauthorized domain. Please contact the administrator.';
+                } else if (error.code) {
+                  message = `${t('loginError')} (${error.code})`;
                 }
                 setLoginError(message);
               } finally {
@@ -355,6 +374,26 @@ export default function App() {
             )}
             {isLoggingIn ? t('loggingIn') : t('loginWithGoogle')}
           </button>
+
+          {loginError && (
+            <button 
+              onClick={async () => {
+                setIsLoggingIn(true);
+                setLoginError(null);
+                try {
+                  await loginWithGoogleRedirect();
+                } catch (error: any) {
+                  console.error('Redirect failed:', error);
+                  setLoginError(`${t('loginError')} (${error.code || 'unknown'})`);
+                } finally {
+                  setIsLoggingIn(false);
+                }
+              }}
+              className="mt-4 text-emerald-600 font-bold text-sm hover:underline"
+            >
+              {language === 'bn' ? 'লগইন করতে সমস্যা হচ্ছে? অন্যভাবে চেষ্টা করুন' : 'Having trouble? Try another way'}
+            </button>
+          )}
         </motion.div>
       </div>
     );

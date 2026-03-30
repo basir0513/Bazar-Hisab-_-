@@ -1,5 +1,5 @@
 import { initializeApp } from 'firebase/app';
-import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged, User } from 'firebase/auth';
+import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect, signOut, onAuthStateChanged, User } from 'firebase/auth';
 import { getFirestore, collection, doc, getDoc, setDoc, updateDoc, deleteDoc, query, where, onSnapshot, getDocFromServer, Timestamp, addDoc, orderBy, getDocs, limit, collectionGroup } from 'firebase/firestore';
 import firebaseConfig from '../firebase-applet-config.json';
 
@@ -68,8 +68,15 @@ export const loginWithGoogle = async () => {
     return result.user;
   } catch (error: any) {
     console.error('Login Error:', error);
-    // If popup is blocked, we could potentially try redirect here, 
-    // but we'll let the UI handle the error message first.
+    throw error;
+  }
+};
+
+export const loginWithGoogleRedirect = async () => {
+  try {
+    await signInWithRedirect(auth, googleProvider);
+  } catch (error: any) {
+    console.error('Login Redirect Error:', error);
     throw error;
   }
 };
