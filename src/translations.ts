@@ -20,6 +20,14 @@ export const translations: Translations = {
     en: 'Login with Google',
     bn: 'Google দিয়ে লগইন করুন',
   },
+  loggingIn: {
+    en: 'Logging in...',
+    bn: 'লগইন হচ্ছে...',
+  },
+  loginError: {
+    en: 'Login failed. Please try again.',
+    bn: 'লগইন ব্যর্থ হয়েছে। অনুগ্রহ করে আবার চেষ্টা করুন।',
+  },
   logout: {
     en: 'Logout',
     bn: 'লগআউট',

@@ -66,8 +66,10 @@ export const loginWithGoogle = async () => {
   try {
     const result = await signInWithPopup(auth, googleProvider);
     return result.user;
-  } catch (error) {
+  } catch (error: any) {
     console.error('Login Error:', error);
+    // If popup is blocked, we could potentially try redirect here, 
+    // but we'll let the UI handle the error message first.
     throw error;
   }
 };

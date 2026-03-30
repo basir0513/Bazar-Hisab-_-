@@ -203,10 +203,12 @@ const ErrorBoundary = ({ children }: { children: React.ReactNode }) => {
 };
 
 export default function App() {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [isAuthReady, setIsAuthReady] = useState(false);
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
+  const [loginError, setLoginError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'dashboard' | 'lists' | 'history' | 'settings' | 'insights'>('dashboard');
   const [selectedListId, setSelectedListId] = useState<string | null>(null);
 
@@ -272,7 +274,15 @@ export default function App() {
             setProfile(newProfile);
           }
         } catch (error) {
-          handleFirestoreError(error, OperationType.WRITE, `users/${u.uid}`);
+          console.error('Profile sync error:', error);
+          // Don't throw here, just log it. The user is still authenticated.
+          // We can show a fallback profile.
+          setProfile({
+            uid: u.uid,
+            displayName: u.displayName || 'User',
+            email: u.email || '',
+            monthlyBudget: 0
+          });
         }
       } else {
         setProfile(null);
@@ -309,12 +319,41 @@ export default function App() {
           </div>
           <h1 className="text-4xl font-black text-zinc-900 mb-3 tracking-tight">{t('appName')}</h1>
           <p className="text-zinc-500 mb-10 text-lg">{t('appTagline')}</p>
+          
+          {loginError && (
+            <div className="mb-6 p-4 bg-red-50 border border-red-100 rounded-2xl text-red-600 text-sm font-medium">
+              {loginError}
+            </div>
+          )}
+
           <button 
-            onClick={loginWithGoogle}
-            className="w-full py-5 gradient-brand text-white rounded-2xl font-bold shadow-xl shadow-brand-200 hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-3"
+            disabled={isLoggingIn}
+            onClick={async () => {
+              setIsLoggingIn(true);
+              setLoginError(null);
+              try {
+                await loginWithGoogle();
+              } catch (error: any) {
+                console.error('Login failed:', error);
+                let message = t('loginError');
+                if (error.code === 'auth/popup-blocked') {
+                  message = language === 'bn' ? 'পপ-আপ ব্লক করা হয়েছে। অনুগ্রহ করে ব্রাউজারে পপ-আপ অনুমতি দিন।' : 'Popup blocked. Please allow popups in your browser.';
+                } else if (error.code === 'auth/network-request-failed') {
+                  message = language === 'bn' ? 'নেটওয়ার্ক সমস্যা। আপনার ইন্টারনেট কানেকশন চেক করুন।' : 'Network error. Please check your internet connection.';
+                }
+                setLoginError(message);
+              } finally {
+                setIsLoggingIn(false);
+              }
+            }}
+            className={`w-full py-5 gradient-brand text-white rounded-2xl font-bold shadow-xl shadow-brand-200 hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-3 ${isLoggingIn ? 'opacity-70 cursor-not-allowed' : ''}`}
           >
-            <img src="https://www.google.com/favicon.ico" className="w-5 h-5 bg-white rounded-full p-0.5" alt="" />
-            {t('loginWithGoogle')}
+            {isLoggingIn ? (
+              <div className="w-6 h-6 border-3 border-white/30 border-t-white rounded-full animate-spin" />
+            ) : (
+              <img src="https://www.google.com/favicon.ico" className="w-5 h-5 bg-white rounded-full p-0.5" alt="" />
+            )}
+            {isLoggingIn ? t('loggingIn') : t('loginWithGoogle')}
           </button>
         </motion.div>
       </div>
