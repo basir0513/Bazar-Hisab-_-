@@ -104,6 +104,18 @@ export const translations: Translations = {
     en: 'Completed',
     bn: 'শেষ',
   },
+  monthlySummary: {
+    en: 'Monthly Summary',
+    bn: 'মাসিক সারসংক্ষেপ',
+  },
+  bazarTrips: {
+    en: 'Bazar Trips',
+    bn: 'বাজারের সংখ্যা',
+  },
+  totalFor: {
+    en: 'Total for',
+    bn: 'মোট খরচ (',
+  },
 
   // Lists
   activeLists: {

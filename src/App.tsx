@@ -51,7 +51,8 @@ import {
   BarChart2,
   PieChart as PieChartIcon,
   User as UserIcon,
-  BarChart3
+  BarChart3,
+  ShoppingBag
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Logo } from './components/Logo';
@@ -594,18 +595,28 @@ function Dashboard({ profile, userId }: { profile: UserProfile | null, userId: s
 
       <div className="grid grid-cols-2 gap-4">
         <StatCard 
+          icon={<Logo size={20} className="bg-emerald-500" />} 
+          label={t('monthlySummary')} 
+          value={`৳ ${currentMonthStats.totalSpent.toLocaleString(language === 'bn' ? 'bn-BD' : 'en-US')}`} 
+          color="bg-emerald-50" 
+          borderColor="border-emerald-100"
+        />
+        <StatCard 
+          icon={<ShoppingBag className="text-amber-500" />} 
+          label={t('bazarTrips')} 
+          value={`${currentMonthStats.count} ${language === 'bn' ? 'বার' : 'Trips'}`} 
+          color="bg-amber-50" 
+          borderColor="border-amber-100"
+        />
+      </div>
+
+      <div className="grid grid-cols-1 gap-4">
+        <StatCard 
           icon={<CreditCard className="text-indigo-600" />} 
           label={t('monthlyBudget')} 
           value={`৳ ${currentMonthStats.budget.toLocaleString(language === 'bn' ? 'bn-BD' : 'en-US')}`} 
           color="bg-indigo-50" 
           borderColor="border-indigo-100"
-        />
-        <StatCard 
-          icon={<Logo size={20} className="bg-rose-500" />} 
-          label={t('totalBazar')} 
-          value={`${currentMonthStats.count} ${language === 'bn' ? 'টি' : ''}`} 
-          color="bg-rose-50" 
-          borderColor="border-rose-100"
         />
       </div>
 
@@ -770,18 +781,37 @@ function BazarLists({ userId, onSelectList, filter, showConfirm, showAlert }: { 
       t('deleteList'),
       t('deleteListConfirm'),
       async () => {
-        console.log('Attempting to delete list:', id);
         try {
           await deleteDoc(doc(db, 'bazarLists', id));
-          console.log('List deleted successfully:', id);
           showAlert(t('success'), t('listDeleted'));
         } catch (error) {
-          console.error('Error deleting list:', error);
           handleFirestoreError(error, OperationType.DELETE, `bazarLists/${id}`);
         }
       }
     );
   };
+
+  const groupedLists = useMemo(() => {
+    if (filter !== 'completed') return null;
+    const groups: { monthKey: string, monthName: string, total: number, lists: BazarList[] }[] = [];
+    
+    lists.forEach(list => {
+      const date = list.date.toDate();
+      const monthName = date.toLocaleDateString(language === 'bn' ? 'bn-BD' : 'en-US', { month: 'long' });
+      const year = date.getFullYear();
+      const monthKey = `${monthName} ${year}`;
+      
+      let group = groups.find(g => g.monthKey === monthKey);
+      if (!group) {
+        group = { monthKey, monthName: `${monthName} ${year}`, total: 0, lists: [] };
+        groups.push(group);
+      }
+      group.lists.push(list);
+      group.total += (list.totalCost || 0);
+    });
+    
+    return groups;
+  }, [lists, filter, language]);
 
   return (
     <motion.div 
@@ -836,44 +866,99 @@ function BazarLists({ userId, onSelectList, filter, showConfirm, showAlert }: { 
       </AnimatePresence>
 
       <div className="space-y-3">
-        {lists.map(list => (
-          <motion.div 
-            key={list.id}
-            layout
-            onClick={() => onSelectList(list.id)}
-            className="bg-white p-4 rounded-2xl border border-zinc-100 flex items-center justify-between cursor-pointer hover:border-emerald-200 transition-all group"
-          >
-            <div className="flex items-center gap-4">
-              <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${filter === 'active' ? 'bg-emerald-50' : 'bg-zinc-50'}`}>
-                <Logo size={24} className={filter === 'active' ? 'bg-emerald-600' : 'bg-zinc-400'} />
+        {filter === 'completed' && groupedLists ? (
+          groupedLists.map(group => (
+            <div key={group.monthKey} className="space-y-3 mb-8">
+              <div className="flex items-center justify-between px-2 pt-4">
+                <div className="flex items-center gap-2">
+                  <div className="w-1.5 h-6 bg-emerald-500 rounded-full" />
+                  <h3 className="font-black text-zinc-900">{group.monthName}</h3>
+                </div>
+                <div className="bg-emerald-50 px-3 py-1 rounded-full">
+                  <span className="text-[11px] font-bold text-emerald-600">
+                    {language === 'bn' ? `মোট: ৳ ${group.total.toLocaleString('bn-BD')}` : `Total: ৳ ${group.total.toLocaleString()}`}
+                  </span>
+                </div>
               </div>
-              <div>
-                <p className="font-bold text-zinc-900">{list.name}</p>
-                <p className="text-xs text-zinc-500">{list.date.toDate().toLocaleDateString(language === 'bn' ? 'bn-BD' : 'en-US')}</p>
+              <div className="grid gap-3">
+                {group.lists.map(list => (
+                  <BazarListCard 
+                    key={list.id} 
+                    list={list} 
+                    filter={filter} 
+                    onSelectList={onSelectList} 
+                    handleDeleteList={handleDeleteList} 
+                    language={language} 
+                    t={t} 
+                  />
+                ))}
               </div>
             </div>
-            <div className="flex items-center gap-4">
-              <div className="text-right">
-                <p className="font-bold text-zinc-900">৳ {list.totalCost?.toLocaleString(language === 'bn' ? 'bn-BD' : 'en-US') || 0}</p>
-                <p className={`text-[10px] font-bold uppercase tracking-wider ${list.status === 'active' ? 'text-emerald-600' : 'text-zinc-400'}`}>
-                  {list.status === 'active' ? t('active') : t('completed')}
-                </p>
-              </div>
-              <button 
-                onClick={(e) => handleDeleteList(e, list.id)}
-                className="p-2 text-zinc-400 hover:text-red-500 transition-colors"
-              >
-                <Trash2 className="w-5 h-5" />
-              </button>
-              <ChevronRight className="w-5 h-5 text-zinc-300" />
-            </div>
-          </motion.div>
-        ))}
+          ))
+        ) : (
+          lists.map(list => (
+            <BazarListCard 
+              key={list.id} 
+              list={list} 
+              filter={filter} 
+              onSelectList={onSelectList} 
+              handleDeleteList={handleDeleteList} 
+              language={language} 
+              t={t} 
+            />
+          ))
+        )}
+        
         {lists.length === 0 && (
           <div className="text-center py-12">
             <p className="text-zinc-400">{t('noListsFound')}</p>
           </div>
         )}
+      </div>
+    </motion.div>
+  );
+}
+
+interface BazarListCardProps {
+  key?: any;
+  list: BazarList;
+  filter: 'active' | 'completed';
+  onSelectList: (id: string) => void;
+  handleDeleteList: (e: React.MouseEvent, id: string) => void | Promise<void>;
+  language: string;
+  t: (key: string) => string;
+}
+
+function BazarListCard({ list, filter, onSelectList, handleDeleteList, language, t }: BazarListCardProps) {
+  return (
+    <motion.div 
+      layout
+      onClick={() => onSelectList(list.id)}
+      className="bg-white p-4 rounded-2xl border border-zinc-100 flex items-center justify-between cursor-pointer hover:border-emerald-200 transition-all group"
+    >
+      <div className="flex items-center gap-4">
+        <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${filter === 'active' ? 'bg-emerald-50' : 'bg-zinc-50'}`}>
+          <Logo size={24} className={filter === 'active' ? 'bg-emerald-600' : 'bg-zinc-400'} />
+        </div>
+        <div>
+          <p className="font-bold text-zinc-900 group-hover:text-emerald-700 transition-colors">{list.name}</p>
+          <p className="text-xs text-zinc-500">{list.date.toDate().toLocaleDateString(language === 'bn' ? 'bn-BD' : 'en-US')}</p>
+        </div>
+      </div>
+      <div className="flex items-center gap-4">
+        <div className="text-right">
+          <p className="font-bold text-zinc-900">৳ {list.totalCost?.toLocaleString(language === 'bn' ? 'bn-BD' : 'en-US') || 0}</p>
+          <p className={`text-[10px] font-bold uppercase tracking-wider ${list.status === 'active' ? 'text-emerald-600' : 'text-zinc-400'}`}>
+            {list.status === 'active' ? t('active') : t('completed')}
+          </p>
+        </div>
+        <button 
+          onClick={(e) => handleDeleteList(e, list.id)}
+          className="p-2 text-zinc-400 hover:text-red-500 transition-colors"
+        >
+          <Trash2 className="w-5 h-5" />
+        </button>
+        <ChevronRight className="w-5 h-5 text-zinc-300" />
       </div>
     </motion.div>
   );
